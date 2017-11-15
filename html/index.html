@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset='utf-8'>
+	<style>
+		html, body{
+			margin: 0;
+		}
+
+		body{
+			animation-duration: 15s;
+			animation-name: Rainbow;
+			animation-iteration-count: infinite;
+		}
+
+		@keyframes Rainbow{
+			0% {
+				background-color: rgba(231, 76, 60, 0.5);
+			}
+			
+			16% {
+				background-color: rgba(230, 126, 34, 0.5);
+			}
+			
+			33%{
+				background-color: rgba(241, 196, 15, 0.5);
+			}
+
+			50% {
+				background-color: rgba(39, 174, 96, 0.5);
+			}
+
+			66% {
+				background-color: rgba(52, 152, 219, 0.5);
+			}
+			83% {
+				background-color: rgba(155, 89, 182, 0.5);
+			}
+			100% {
+				background-color: rgba(231, 76, 60, 0.5);
+			}
+		}
+
+		#Login{
+			background: rgb(44,44,44);
+			padding: 15px;
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			display: inline-block;
+			border-radius: 10px;
+			
+			-webkit-box-shadow: 2px 2px 2px -1px rgba(0,0,0,0.75);
+			-moz-box-shadow: 2px 2px 2px -1px rgba(0,0,0,0.75);
+			box-shadow: 2px 2px 2px -1px rgba(0,0,0,0.75);
+		}
+
+		#Login .Field{
+			display: block;
+			width: 275px;
+			background: rgb(22,22,22);
+			border-radius: 5px;
+			color: #ecf0f1;
+			border: 0;
+			font-size: 22px;
+			padding: 5px;
+		}
+		.Field:not(:first-child){
+			margin-top: 10px;
+		}
+
+		.Field:focus{
+			outline: none;
+		}
+
+		.FieldContainer{
+			margin-bottom: 10px;
+			display: block;
+			width: 275px;
+			padding: 5px;
+			height: 36px;
+		}
+		.Button{
+			border-radius: 50%;
+			height: 36px;
+			width: 36px;
+			font-size: 40px;
+			color: #3498db;
+			font-weight: bold;
+			float: right;
+			transition: color 0.5s;
+			cursor: pointer;
+		}
+		.Button:hover{
+			color: #2ecc71;
+		}
+		
+	</style>
+</head>
+<body>
+	<div id="Login">
+		<input placeholder="Username" class="Field">
+		<input placeholder="Password" class="Field" type="password">
+		<div class="FieldContainer">
+			<div class="Button" onclick="login()">&ofcir;</div>
+		</div>
+	</div>
+	<script>
+		function login(){
+			var Username = document.querySelector("input:first-child").value;
+			var Pass = document.querySelector("input[type=password]").value;
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function(){
+				console.log(xhr.readyState);
+				if(xhr.status == 200 && xhr.readyState == 4){
+					window.location = "/Terminal";
+					console.log(xhr);
+				}else if(xhr.status == 4 && xhr.readyState == 404){
+					alert("There was a problem");
+				}
+			}
+			xhr.open("POST", "/Login", true);
+			xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+			xhr.send("LoginString=" + Username + ";" + Pass);
+			Pass = "";
+		}
+	</script>
+</body>
+</html>

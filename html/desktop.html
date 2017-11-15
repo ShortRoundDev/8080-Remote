@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		html{
+			background-image: url('http://www.ubuntubackgrounds.com/wallpapers/ubuntu-bird.jpg');
+			background-size: cover;
+		}
+		html, body{
+			margin: 0;
+		}
+		#navbar{
+			position: absolute;
+			left: 0;
+			bottom: 0;
+			
+			width: 100vw;
+			background: #222;
+			height: 32px;
+			border-top: 2px solid #111;
+		}
+		#menu{
+			height: 32px;
+			width: 64px;
+			background: #222;
+			float: left;
+			border-right: 2px solid #333;
+			transition: background 0.25s;
+			color: #ecf0f1;
+			text-align: center;
+			font-size: 24px;
+		}
+		#menu:hover{
+			background: #333;
+			cursor: pointer;
+		}
+
+		.terminal{
+			width: 450px;
+			height: 300px;
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			border: 2px solid #222;
+			font-family: monospace;
+			color: #ecf0f1;
+			-webkit-box-shadow: 2px 2px 5px 0px rgba(0,0,0,0.5);
+			-moz-box-shadow: 2px 2px 5px 0px rgba(0,0,0,0.5);
+			box-shadow: 2px 2px 5px 0px rgba(0,0,0,0.5);
+		}
+		.terminal .header{
+			width: 100%;
+			height: 32px;
+			color: #ecf0f1;
+			background: #222;
+			padding: 6px;
+			box-sizing: border-box;
+			-webkit-touch-callout: none;
+			-webkit-user-select: none;
+			-khtml-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			-o-user-select: none;
+			user-select: none;
+		}
+		.terminal .body{
+			width: 100%;
+			height: calc(100% - 32px);
+			background: #111;
+		}
+	</style>
+</head>
+<body>
+	<div class="terminal">
+		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty0</div>
+		<div class="body"></div>
+	</div>
+	<div id="navbar"><div id="menu">&pi;</div></div>
+
+	<script>
+		var Dragging = {
+			IsDragging: false,
+			DraggingObject: undefined,
+			Offset: {
+				x: 0,
+				y: 0
+			}
+		}
+
+		function StartDrag(e, dom){
+			console.log("what");
+			Dragging.IsDragging = true;
+			Dragging.DraggingObject = dom;
+			Dragging.Offset = {
+				x: e.offsetX,
+				y: e.offsetY
+			}
+		}
+		window.addEventListener("mousemove", function(e){
+			if(Dragging.IsDragging){
+
+				var BoundingRect = Dragging.DraggingObject.getBoundingClientRect();
+		
+				Dragging.DraggingObject.style.top = Math.max(Math.min(e.clientY - Dragging.Offset.y, window.innerHeight - BoundingRect.height), 0) + "px";
+				Dragging.DraggingObject.style.left = Math.max(Math.min(e.clientX - Dragging.Offset.x, window.innerWidth - BoundingRect.width), 0) + "px";
+			}
+		});
+		window.addEventListener("mouseup", function(e){
+			Dragging.IsDragging = false;
+			Dragging.DraggingObject = undefined;
+			Dragging.Offset = {
+				x: 0,
+				y: 0
+			}
+		});
+	</script>
+</body>
+</html>
