@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include "lib8080.h"
 #include "libemulator.h"
+#include "libheap.h"
 
 char *AllPages[32768];
 int PageNum = 0;
@@ -233,9 +234,17 @@ void* ProcessAlloc(){
 	mkfifo(OutPath, 0777);
 		//IO fifo queues
 	Header->In = open(InPath, O_RDWR | O_NONBLOCK);
-	if(Header->In == -1)
+	if(Header->In == -1){
 		printf("Creation error: IN: %s\n", strerror(errno));
+		ProcessDealloc(Header);
+		return NULL;
+	}
 	Header->Out = open(OutPath, O_RDWR | O_NONBLOCK);
+	if(Header->Out == -1){
+		printf("Creation error: OUT: %s\n", strerror(errno));
+		ProcessDealloc(Header);
+		return NULL;
+	}
 
 	return Header;	
 }
@@ -294,11 +303,16 @@ char GetMemory(unsigned short address, Process *p){
 
 Process *CreateProcess(char *Program, char mode){
 	Process *p = (Process *)ProcessAlloc();
+	if(p == NULL)
+		return NULL;
+	AddToProcessTable(p);
+	
 	FILE *FProgram = NULL;
 	if(mode == MODE_BINARY){
 		FProgram = fopen(Program, "rb");
-		if(FProgram == NULL)
+		if(FProgram == NULL){
 			return NULL;
+		}
 		unsigned short i = 0;
 		char c = 0;
 		while((c = fgetc(FProgram)) != EOF && i < 0xffff){
@@ -309,8 +323,9 @@ Process *CreateProcess(char *Program, char mode){
 		}
 	}else if(mode == MODE_HEX){
 		FProgram = fopen(Program, "r");
-		if(FProgram == NULL)
+		if(FProgram == NULL){
 			return NULL;
+		}
 		unsigned short i = 0;
 		while(!feof(FProgram)){
 			char Octet[2] = {'\0', '\0'};
@@ -326,6 +341,41 @@ Process *CreateProcess(char *Program, char mode){
 	}else{
 		return NULL;
 	}
+	fclose(FProgram);
 	return p;
+}
+
+
+void AddToProcessTable(Process *p){
+	int Index = p->Pid % 127;
+	if(ProcessTable[Index] == NULL){
+		ProcessTable[Index] = malloc(sizeof(ProcessBucket));
+		ProcessTable[Index]->Value = p;
+	}else{
+		ProcessBucket *Cursor = ProcessTable[Index];
+		while(Cursor->Next != NULL){
+			Cursor = Cursor->Next;
+		}
+		Cursor->Next = malloc(sizeof(ProcessBucket));
+		Cursor->Next->Value = p;
+	}
+}
+
+Process *FindInProcessTable(int pid){
+	int Index = pid % 127;
+	ProcessBucket *Cursor = ProcessTable[Index];
+	if(ProcessTable[Index] == NULL){
+		return NULL;
+	}else{
+		while(Cursor->Next != NULL){
+			if(Cursor->Value->Pid == pid)
+				break;
+			Cursor = Cursor->Next;
+		}if(Cursor->Next == NULL && Cursor->Value->Pid != pid){
+			return NULL;
+		}else{
+			return Cursor->Value;
+		}
+	}
 }
 

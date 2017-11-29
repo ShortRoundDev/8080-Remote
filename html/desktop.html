@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono" rel="stylesheet">
 	<style>
 		html{
 			background-image: url('http://www.ubuntubackgrounds.com/wallpapers/ubuntu-bird.jpg');
@@ -30,6 +31,7 @@
 			text-align: center;
 			font-size: 24px;
 		}
+
 		#menu:hover{
 			background: #333;
 			cursor: pointer;
@@ -42,7 +44,7 @@
 			top: 10px;
 			left: 10px;
 			border: 2px solid #222;
-			font-family: monospace;
+			font-family: 'Ubuntu Mono', monospace;
 			color: #ecf0f1;
 			-webkit-box-shadow: 2px 2px 5px 0px rgba(0,0,0,0.5);
 			-moz-box-shadow: 2px 2px 5px 0px rgba(0,0,0,0.5);
@@ -67,12 +69,23 @@
 			width: 100%;
 			height: calc(100% - 32px);
 			background: #111;
+			overflow-y: auto;
+			word-break: break-all;
+			font-family: 'Ubuntu Mono', monospace;
 		}
 	</style>
 </head>
 <body>
 	<div class="terminal">
 		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty0</div>
+		<div class="body"></div>
+	</div>
+	<div class="terminal">
+		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty1</div>
+		<div class="body"></div>
+	</div>
+	<div class="terminal">
+		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty2</div>
 		<div class="body"></div>
 	</div>
 	<div id="navbar"><div id="menu">&pi;</div></div>
@@ -89,6 +102,9 @@
 
 		function StartDrag(e, dom){
 			console.log("what");
+			if(Dragging.DraggingObject)
+				Dragging.DraggingObject.style.zIndex = "0";
+			dom.style.zIndex = "1";
 			Dragging.IsDragging = true;
 			Dragging.DraggingObject = dom;
 			Dragging.Offset = {
@@ -107,12 +123,29 @@
 		});
 		window.addEventListener("mouseup", function(e){
 			Dragging.IsDragging = false;
-			Dragging.DraggingObject = undefined;
 			Dragging.Offset = {
 				x: 0,
 				y: 0
 			}
 		});
+
+		function Poll(Id, Payload){
+
+			if(Payload){
+				
+			}
+
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function(){
+				if(xhr.status == 200 && xhr.readyState == 4){
+					Poll(Id, xhr.responseText);
+				}
+			}
+		}
+
+		function ParsePayload(Payload){
+			return Payload.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/ /g, "&nbsp");
+		}
 	</script>
 </body>
 </html>

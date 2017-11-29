@@ -18,7 +18,6 @@ void *Head(void *x);
 
 int ProcessId = 0;
 int MemUsed = 0;
-extern int HeapSize;
 
 instruction InstructionSet[256];
 
@@ -57,17 +56,24 @@ int main(int argc, char** argv){
 		}
 	}
 
-	Process *p = (Process *)ProcessAlloc();
+	Process *a[1000];
+	for(int i = 0; i < 500; i++)
+		a[i] = CreateProcess("abc.hex", MODE_HEX);
+	//p->registers[R_A]  = 0x3e;
 
-	p->registers[R_A] = 0x6c;
+	//p->registers[R_B]  = 0x3e;
+//	p->registers[R_F] |= F_C;
 
-	p->registers[R_H] = 0x0f;
-	p->registers[R_L] = 0xff;
-
-	SetMemory(0x2e, 0x0fff, p);
+//	SetMemory(0x00, 0x88, p);
 	
-	InstructionSet[0x86](0x86, 0, p);
-	printf("%d F:%d\n", p->registers[R_A], p->registers[R_F]);
+	//InstructionSet[0x90](0x90, 0, p);
+	//printf("%u F:%d\n", p->registers[R_A], p->registers[R_F]);
+
+	//printf("%d\n", p->registers[R_F] & F_C);
+	//printf("%d\n", p->registers[R_F] & F_P);
+//	printf("%d\n", p->registers[R_F] & F_A);
+//	printf("%d\n", p->registers[R_F] & F_Z);
+//	printf("%d\n", p->registers[R_F] & F_S);
 
 	pthread_exit(NULL);
 }

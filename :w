@@ -106,50 +106,14 @@ void HeapBubbleFrom(Process **Head, int Index){
 
 void HeapAgeLinear(){
 	Page *PageCursor = (Page *)Processes;
-	if(PageCursor == NULL)
+	if(*Processess == NULL)
 		return;
 	int offset = 0;
-	Process **ProcessCursor = ((Process **)(PageCursor + 1)) + offset;
-	if(ProcessCursor == NULL){
-		printf("Null head\n");
-		return;
+	Process *ProcessCursor = (Process *)((char *)((Page *)(Processes) + 1) + (offset));
+	if(*ProcessCursor == NULL)
+		return
 	}
 	while(ProcessCursor != NULL){
-		printf("offset: %d\n", offset);
-		((Process *)ProcessCursor)->priority = 1;
-		offset++;
-		if(offset/(4096/sizeof(Process *)) >= 1){
-			printf("Page Cursor\n");
-			PageCursor = (Page *)(PageCursor->Next);
-		}
-		if(PageCursor == NULL)
-			break;
-		ProcessCursor++;
+		Process
 	}
-}
-
-void ActOnHeap(HeapOperation op){
-	Page *PageCursor = (Page *)Processes;
-	if(PageCursor == NULL)
-		return;
-	int offset = 0;
-	Process **ProcessCursor = ((Process **)(PageCursor + 1)) + offset;
-	if(ProcessCursor == NULL){
-		return;
-	}
-	while(ProcessCursor != NULL){
-		op((Process *)ProcessCursor);
-		offset++;
-		if(offset/(4096/sizeof(Process *)) >= 1){
-			printf("Page Cursor\n");
-			PageCursor = (Page *)(PageCursor->Next);
-		}
-		if(PageCursor == NULL)
-			break;
-		ProcessCursor++;
-	}
-}
-
-void GetPriority(Process *p){
-	printf("Priority #%d:\t%d\n", p->Pid, p->priority);
 }

@@ -28,11 +28,19 @@ typedef struct _HighPageTable{
 	PageTable *PageTables[16];
 } HighPageTable;
 
+
 struct Process;
 typedef struct Process Process;
 extern char* BreakHead;
 extern char* Pages;
 extern char* Processes;
+
+typedef struct _ProcessBucket{
+	Process *Value;
+	struct _ProcessBucket *Next;
+} ProcessBucket;
+
+ProcessBucket *ProcessTable[127];
 
 	//gets bitrange between start and end, inclusive
 int GetRegister(char operand, int start, int end);
@@ -57,4 +65,7 @@ Page* GetPage(short address, Process *p);
 int SetMemory(char value, unsigned short address, Process *p);
 char GetMemory(unsigned short address, Process *p);
 Process *CreateProcess(char *Program, char mode);
+
+void AddToProcessTable(Process *p);
+Process *FindInProcessTable(int pid);
 #endif

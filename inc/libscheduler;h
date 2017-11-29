@@ -1,0 +1,9 @@
+struct _Node{
+	Process *Value;
+	
+}
+
+struct _Queue{
+	struct _Node *Head;
+	struct _Node *End;
+}

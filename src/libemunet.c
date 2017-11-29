@@ -6,9 +6,13 @@
 #include <string.h>
 #include <pthread.h>
 #include <crypt.h>
+#include <sys/ioctl.h>
+#include <math.h>
 
+#include "lib8080.h"
 #include "libemunet.h"
 #include "libhttp.h"
+#include "libemulator.h"
 
 #define PORT 7070
 
@@ -73,9 +77,9 @@ void *HandleRequest(void *_ServerFd){
 	char Method[16] = {0};
 	char Endpoint[16] = {0};
 	char Args[128] = {0};
-	char *Cookies = malloc(256);
+	char *Cookies = malloc(5000);
 		printf("root\n");
-	GetCookies(&Cookies, Buffer);
+	GetCookies(Cookies, Buffer);
 	GetEndpoint(Buffer, Method, Endpoint, Args);
 
 	if(!strcmp(Endpoint, "/")){
@@ -94,6 +98,8 @@ void *HandleRequest(void *_ServerFd){
 			printf("Fetching Terminal\n");
 			Terminal(ServerFd, Cookies);
 		}
+	}else if(!strcmp(Method, "GET") && !strcmp(Endpoint, "/ProcessStream")){
+		ReadProcessStream(ServerFd, Args, ServerTime);
 	}else{
 		NotFound(ServerFd, ServerTime);
 	}
@@ -298,17 +304,20 @@ int ValidateSession(char *SessionId){
 	return NotExpired;
 }
 
-void GetCookies(char **Destination, char *Request){
+void GetCookies(char *Destination, char *Request){
 	char *Tmp = malloc(strlen(Request));
 	strcpy(Tmp, Request);
 	char *CookieHeader = strstr(Tmp, "Cookie: ");
+	printf("finding cookies\n");
 	if(CookieHeader == NULL){
-		strcpy(*Destination, "Not Found!");
+		printf("not found!\n");
+		strcpy(Destination, "Not Found!");
 		return;
 	}else{
-		strcpy(*Destination, strtok(CookieHeader + 8, "\r\n"));
+		printf("Found cookies\n");
+		strcpy(Destination, strtok(CookieHeader + 8, "\r\n"));
 	}
-	free(Tmp);
+//	free(Tmp);
 }
 
 void Terminal(int ServerFd, char *Request){
@@ -318,7 +327,6 @@ void Terminal(int ServerFd, char *Request){
 
 	printf("Getting Session ID\n");
 	char *SessionHeader = strstr(Request, "SessionId=");
-	char *SessionId = strtok(SessionHeader + strlen("SessionId="), "; \r");
 
 	if(SessionHeader == NULL){
 		printf("no cookie provided\n");
@@ -326,6 +334,7 @@ void Terminal(int ServerFd, char *Request){
 		return;
 
 	}
+	char *SessionId = strtok(SessionHeader + strlen("SessionId="), "; \r");
 	printf("Successfully found Session Header\n");
 
 	if(!ValidateSession(SessionId)){
@@ -335,4 +344,42 @@ void Terminal(int ServerFd, char *Request){
 	}
 	printf("Validated Session\n");
 	GetFile("html/desktop.html", ServerFd);
+}
+
+void ReadProcessStream(int ServerFd, char *Args, char *ServerTime){
+	int Pid = atoi(Args + strlen("pid="));
+	Process *Pinfo = FindInProcessTable(Pid);
+	if(Pinfo == NULL){
+		NotFound(ServerFd, ServerTime);
+		return;
+	}
+	char Buffer[10000];
+	int BytesAvailable = 0;
+
+	int err = ioctl(Pinfo->Out, FIONREAD, &BytesAvailable);
+	BytesAvailable = fmin(BytesAvailable, 9000);
+	char *Output = calloc(BytesAvailable, 1);
+	
+	read(Pinfo->Out, Output, BytesAvailable);
+	char SizeStr[100];
+	sprintf(SizeStr, "%d", BytesAvailable);
+	
+	SetReasonCode(Buffer, 200);
+	SetResponseHeader(Buffer, "Date", ServerTime);
+	SetResponseHeader(Buffer, "Server", "8080 Remote v0.1");
+	SetResponseHeader(Buffer, "Content-Length", SizeStr);
+	SetResponseHeader(Buffer, "Connection", "Closed");
+	SetResponseHeader(Buffer, "Content-Type", "text/html; charset=iso-8859-1");
+	strcat(Buffer, "\r\n");
+	strcat(Buffer, Output);
+	
+	send(ServerFd, Buffer, strlen(Buffer), 0);
+	free(Output);
+}
+
+void WriteProcessStream(int ServerFd, char *Args, char *ServerTime){
+}
+
+void GetAllPrograms(int ServerFd, char *ServerTime){
+	
 }

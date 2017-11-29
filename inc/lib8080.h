@@ -25,6 +25,7 @@ extern int ProcessId;
 
 typedef struct Process{
 	char 	free;
+	char 	state;
 	Page* 	Next;
 	unsigned short 	pc;
 	unsigned short 	sp;

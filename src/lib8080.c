@@ -168,17 +168,63 @@ void Add(char operator, short operand, struct Process* Pinfo){
 }
 #define ADC AddCarry
 void AddCarry(char operator, short operand, struct Process* Pinfo){
-	//Page 18
+	int Reg = operator & 7;
+	unsigned char value = 0;
+	int Carry = 0;
+	if(Pinfo->registers[R_F] & F_C)
+		Carry = 1;
+	if(Reg != 6)
+		value = Pinfo->registers[Reg];
+	else
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	
+	unsigned char before = Pinfo->registers[R_A];
+	Pinfo->registers[R_A] += value + Carry;
+	CheckCarryOut(before, value + Carry, Pinfo, Addition);
+	CheckAuxCarryOut(before, value + Carry, Pinfo, Addition);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
 }
 
 #define SUB Subtract
 void Subtract(char operator, short operand, struct Process* Pinfo){
-	//Page 18
+	int Reg = operator & 7;
+	char value = 0;
+	if(Reg != 6)
+		value = Pinfo->registers[Reg];
+	else
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	value = (~value) + 1;
+	unsigned char before = Pinfo->registers[R_A];
+	Pinfo->registers[R_A] += value;
+	CheckCarryOut(before, value, Pinfo, Addition);
+	Pinfo->registers[R_F] ^= F_C;
+	CheckAuxCarryOut(before, value, Pinfo, Addition);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
 }
 
 #define SBB SubtractBorrow
 void SubtractBorrow(char operator, short operand, struct Process* Pinfo){
-	//Page 19
+	int Reg = operator & 7;
+	unsigned char value = 0;
+	int Carry = 0;
+	if(Pinfo->registers[R_F] & F_C)
+		Carry = 1;
+	if(Reg != 6)
+		value = Pinfo->registers[Reg];
+	else
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	
+	unsigned char before = Pinfo->registers[R_A];
+	Pinfo->registers[R_A] -= value + Carry;
+	CheckCarryOut(before, value + Carry, Pinfo, Subtraction);
+	CheckAuxCarryOut(before, value + Carry, Pinfo, Subtraction);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
 }
 
 #define ANA AND
