@@ -219,7 +219,7 @@ void SubtractBorrow(char operator, short operand, struct Process* Pinfo){
 		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
 	
 	unsigned char before = Pinfo->registers[R_A];
-	Pinfo->registers[R_A] -= value + Carry;
+	Pinfo->registers[R_A] -= (value + Carry);
 	CheckCarryOut(before, value + Carry, Pinfo, Subtraction);
 	CheckAuxCarryOut(before, value + Carry, Pinfo, Subtraction);
 	CheckZero(R_A, Pinfo);
@@ -230,31 +230,101 @@ void SubtractBorrow(char operator, short operand, struct Process* Pinfo){
 #define ANA AND
 void AND(char operator, short operand, struct Process* Pinfo){
 	//Page 19
+	int Reg = operator & 7;
+	unsigned char value = 0;
+	if(Reg != 6)
+		value = Pinfo->registers[Reg];
+	else
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	
+	Pinfo->registers[R_A] &= value;
+	Pinfo->registers[R_F] &= ~F_C;
+	CheckZero(R_A, Pinfo);	
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
 }
 
 #define XRA XOR
 void XOR(char operator, short operand, struct Process* Pinfo){
 	//Page 19
+	int Reg = operator & 7;
+	unsigned char value = 0;
+	if(Reg != 6)
+		value = Pinfo->registers[Reg];
+	else
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	
+	Pinfo->registers[R_A] ^= value;
+	Pinfo->registers[R_F] &= ~F_C;
+	Pinfo->registers[R_F] |= F_A;
+	CheckZero(R_A, Pinfo);	
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
 }
 
 #define OR OR
 void OR(char operator, short operand, struct Process* Pinfo){
 	//Page 20
+	int Reg = operator & 7;
+	unsigned char value = 0;
+	if(Reg != 6)
+		value = Pinfo->registers[Reg];
+	else
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	
+	Pinfo->registers[R_A] |= value;
+	Pinfo->registers[R_F] &= ~F_C;
+	Pinfo->registers[R_F] |= F_A;
+	CheckZero(R_A, Pinfo);	
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
 }
 
 #define CMP CompareAccumulator
 void CompareAccumulator(char operator, short operand, struct Process* Pinfo){
 	//Page 20
+	int Reg = operator & 7;
+	unsigned char value = 0;
+	if(Reg != 6){
+		value = Pinfo->registers[Reg];
+	}else{
+		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
+	}
+	unsigned char Acc = Pinfo->registers[R_A];
+	
+	unsigned int diff = Acc - value;
+	if(diff == 0){
+		Pinfo->registers[R_F] |= F_Z;
+	}else{
+		Pinfo->registers[R_F] &= ~F_Z;
+	}
+
+	if(value > Acc){
+		Pinfo->registers[R_F] |= F_C;
+	}else{
+		Pinfo->registers[R_F] &= ~F_C;
+	}
+
+		//Different signs, switch F_C
+	if((Acc & 0x70) ^ (diff & 0x80)){
+		Pinfo->registers[R_F] ^= F_C;
+	}
 }
 
 #define RLC RotateLeft
 void RotateLeft(char operator, short operand, struct Process* Pinfo){
 	//Page 21
+	unsigned char Acc = Pinfo->registers[R_A];
+	Pinfo->registers[R_F] |= (Acc & 0x80) && 1 ? F_C : 0;
+	Pinfo->registers[R_A] = (Acc << 1) | Pinfo->registers[R_F] & F_C;
 }
 
 #define RRC RotateRight
 void RotateRight(char operator, short operand, struct Process* Pinfo){
 	//Page 21
+	unsigned char Acc = Pinfo->registers[R_A];
+	Pinfo->registers[R_F] |= (Acc & 0x01);
+	Pinfo->registers[R_A] = (Acc >> 1) | ((Pinfo->registers[R_F] & F_C) << 7);
 }
 
 #define RAL RotateLeftCarry
@@ -830,14 +900,23 @@ void CheckParity(char Reg, Process *Pinfo){
 
 void CheckCarryOut(unsigned short a, unsigned short b, Process *Pinfo, operation op){
 	unsigned int r = op(a, b);
-	if(r > 0xff)
-		Pinfo->registers[R_F] |= F_C;
-	else
-		Pinfo->registers[R_F] &= ~F_C;
+	if(r > 0xff){
+		if(op == Subtraction)
+			Pinfo->registers[R_F] &= ~F_C;
+		else
+			Pinfo->registers[R_F] |= F_C;
+		
+	}else{
+		if(op == Subtraction)
+			Pinfo->registers[R_F] |= F_C;
+		else
+			Pinfo->registers[R_F] &= ~F_C;
+	}
 }
 
 void CheckAuxCarryOut(unsigned short a, unsigned short b, Process *Pinfo, operation op){
 	unsigned int r = op(a & 0x0f, b & 0x0f);
+	printf("Aux carry out: %d\n", r);
 	if(r > 0xf){
 		Pinfo->registers[R_F] |= F_A;
 	}else{
@@ -878,5 +957,7 @@ unsigned int Addition(unsigned char a, unsigned char b){
 }
 
 unsigned int Subtraction(unsigned char a, unsigned char b){
-	return (unsigned int) a - b;
+	printf("Subtracting: %u - %u\n", a, b);
+	printf("Negative b: %d\n", (unsigned char)~b);
+	return (unsigned int) a + ((unsigned char)~b);
 }

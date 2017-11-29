@@ -11,7 +11,6 @@
 
 #include "lib8080.h"
 #include "libemulator.h"
-#include "libheap.h"
 #include "libemunet.h"
 
 void *Head(void *x);
@@ -56,9 +55,17 @@ int main(int argc, char** argv){
 		}
 	}
 
-	Process *a[1000];
-	for(int i = 0; i < 500; i++)
-		a[i] = CreateProcess("abc.hex", MODE_HEX);
+	Process *p = ProcessAlloc();
+	p->registers[R_A] = 0xf2;
+	//p->registers[R_C] = 0x05;
+	InstructionSet[0x0f](0x0f, 0x00, p);
+	printf("A: %d\n", p->registers[R_A]);
+	printf("C: %d\n", (p->registers[R_F] & F_C) && 1);
+	printf("Z: %d\n", (p->registers[R_F] & F_Z) && 1);
+	printf("a: %d\n", (p->registers[R_F] & F_A) && 1);
+	printf("P: %d\n", (p->registers[R_F] & F_P) && 1);
+	printf("S: %d\n", (p->registers[R_F] & F_S) && 1);
+
 	//p->registers[R_A]  = 0x3e;
 
 	//p->registers[R_B]  = 0x3e;

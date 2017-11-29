@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include "lib8080.h"
 #include "libemulator.h"
-#include "libheap.h"
 
 char *AllPages[32768];
 int PageNum = 0;
