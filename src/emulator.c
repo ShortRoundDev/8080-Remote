@@ -56,9 +56,11 @@ int main(int argc, char** argv){
 	}
 
 	Process *p = ProcessAlloc();
-	p->registers[R_A] = 0xb5;
+	p->registers[R_A] = 0x6a;
+	printf("6a & 1: %d\n", 0x6a & 1);
+	p->registers[R_F] |= 1;
 	//p->registers[R_C] = 0x05;
-	InstructionSet[0x17](0x17, 0x00, p);
+	InstructionSet[0x1f](0x1f, 0x00, p);
 	printf("A: %d\n", p->registers[R_A]);
 	printf("C: %d\n", (p->registers[R_F] & F_C) && 1);
 	printf("Z: %d\n", (p->registers[R_F] & F_Z) && 1);

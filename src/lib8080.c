@@ -339,7 +339,10 @@ void RotateLeftCarry(char operator, short operand, struct Process* Pinfo){
 #define RAR RotateRightCarry
 void RotateRightCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 22
-	
+	unsigned char Acc = Pinfo->registers[R_A];
+	unsigned char Carry = Pinfo->registers[R_F] & F_C;
+	Pinfo->registers[R_F] &= (Acc & 1);
+	Pinfo->registers[R_A] = (Acc >> 1) | Carry << 7;
 }
 
 #define PUSH Push
