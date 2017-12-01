@@ -106,7 +106,7 @@ void* PageTableAlloc(){
 			//Found Spot, fits
 		else if(PageTableHeader->Type == FREE && offset <= (4096 - sizeof(HighPageTable))){
 			PageTableHeader->Type = PAGE_TABLE;
-			PageTableHeader->Pages[0] = PageAlloc();
+//			PageTableHeader->Pages[0] = PageAlloc();
 			return PageTableHeader;
 
 			//Found spot, but not enough space

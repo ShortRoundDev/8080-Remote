@@ -201,6 +201,8 @@ void Output(char operator, short operand, Process* Pinfo);
 	
 void Halt(char operator, short operand, Process* Pinfo);
 
+void Fork(char operator, short operand, Process* Pinfo);
+
 void LoadInstructionSet();
 
 void CheckParity(char Reg, Process *Pinfo);

@@ -1,4 +1,5 @@
 #include "lib8080.h"
+#include "libscheduler.h"
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -1136,6 +1137,40 @@ void Halt(char operator, short operand, struct Process* Pinfo){
 	Pinfo->state = -1;
 }
 
+void Fork(char operator, short operand, struct Process *Pinfo){
+	Process *Child = ProcessAlloc();
+	Child->PageTables = Pinfo->PageTables;
+	Child->state = Pinfo->state;
+	Child->inte = Pinfo->inte;
+	Child->pc = Pinfo->pc;
+	Child->sp = Pinfo->sp;
+
+	Child->registers[R_A] = Pinfo->registers[R_A];
+	Child->registers[R_B] = Pinfo->registers[R_B];
+	Child->registers[R_C] = Pinfo->registers[R_C];
+	Child->registers[R_D] = Pinfo->registers[R_D];
+	Child->registers[R_E] = Pinfo->registers[R_E];
+	Child->registers[R_H] = Pinfo->registers[R_H];
+	Child->registers[R_L] = Pinfo->registers[R_L];
+	Child->registers[R_F] = Pinfo->registers[R_F];
+	Child->registers[R_M] = Pinfo->registers[R_M];
+	
+	Child->registers[R_F] |= F_Z;
+	Pinfo->registers[R_F] &= ~F_Z;
+	Child->bank = Pinfo->bank;
+	Child->priority = Pinfo->priority;
+	Child->group = Pinfo->group;
+	
+	Child->Pid = ProcessId++;
+	Child->In = Pinfo->In;
+	Child->Out = Pinfo->Out;
+	
+	AddToProcessTable(Child);
+	QueueInsert(Child);
+	Pinfo->pc++;
+	Child->pc++;
+}
+
 void LoadInstructionSet(){
 
 	InstructionSet[0x0] = NOP;
@@ -1348,6 +1383,7 @@ void LoadInstructionSet(){
 	InstructionSet[0xd6] = SUI;
 	InstructionSet[0xd7] = RST;
 	InstructionSet[0xd8] = RC;
+	InstructionSet[0xd9] = Fork;
 	InstructionSet[0xda] = JC;
 	InstructionSet[0xdb] = IN;
 	InstructionSet[0xdc] = CC;
