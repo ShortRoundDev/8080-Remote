@@ -76,7 +76,7 @@
 	</style>
 </head>
 <body>
-	<div class="terminal">
+<!--	<div class="terminal">
 		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty0</div>
 		<div class="body"></div>
 	</div>
@@ -84,13 +84,14 @@
 		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty1</div>
 		<div class="body"></div>
 	</div>
-	<div class="terminal">
+	<div class="terminal" tabindex="1" mode="shell" buffer="" state="ready" onkeydown="HandleKeyboard(event, this)">
 		<div class="header" onmousedown="StartDrag(event, this.parentNode)">/dev/tty2</div>
 		<div class="body"></div>
-	</div>
-	<div id="navbar"><div id="menu">&pi;</div></div>
+	</div>-->
+	<div id="navbar"><div id="menu" onclick="CreateNewTerminal()">&pi;</div></div>
 
 	<script>
+		var tty = 0;
 		var Dragging = {
 			IsDragging: false,
 			DraggingObject: undefined,
@@ -146,6 +147,149 @@
 		function ParsePayload(Payload){
 			return Payload.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/ /g, "&nbsp");
 		}
+		function HandleKeyboard(e, dom){
+			if(dom.getAttribute("state") == "ready"){
+				if(e.keyCode == 8){
+					var buffer = dom.getAttribute("buffer");
+					dom.setAttribute("buffer", buffer.substring(0, buffer.length - 1));
+					dom.querySelector(".body").innerHTML = dom.getAttribute("buffer");
+				}else if(e.keyCode == 13){
+					HandleInput(dom);
+					dom.querySelector(".body").innerHTML += "<br>";
+					dom.setAttribute("buffer", "");
+				}else if(e.keyCode >= 65 && e.keyCode <= 90){
+					var buffer = dom.getAttribute("buffer");
+					dom.setAttribute("buffer", buffer + String.fromCharCode(e.which))
+					dom.querySelector(".body").innerHTML = dom.getAttribute("buffer");
+				}
+			}else if(dom.getAttribute("state") == "running"){
+				if((e.keyCode >= 65 && e.keyCode <= 90) || e.keycode == 13){
+					SendInput(String.fromCharCode(e.which), dom.getAttribute("pid"), dom);
+				}
+			}else if(dom.getAttribute("state") == "waiting"){
+				dom.querySelector(".body").innerHTML = "";
+				dom.setAttribute("state", "ready");
+			}
+		}
+
+		function HandleInput(dom){
+			CreateProcess(dom.getAttribute("buffer").toLowerCase(), dom);
+		}
+
+		function CreateProcess(program, dom){
+			var xhr = new XMLHttpRequest();
+			xhr.open("POST", "/CreateProcess", true);
+			xhr.onreadystatechange = function(){
+				if(xhr.readyState == 4 && xhr.status == 200){
+					dom.setAttribute("pid", xhr.responseText);
+					dom.setAttribute("state", "running");
+					PollProcess(xhr.responseText, dom);
+				}
+			}
+			xhr.send("program=" + program + ".hex");
+		}
+		var TimeSincePoll = 0
+		function PollProcess(pid, dom){
+			if(pid == "1")
+				console.log("POLLING 1");
+			var TimeNow = new Date().getTime();
+			if(TimeNow - TimeSincePoll < 2000){
+				setTimeout(function(){PollProcess(pid, dom)}, 2000);
+				return;
+			}else{
+				TimeSincePoll = TimeNow;
+			}
+			if(parseInt(dom.getAttribute("failures")) > 100)
+				return;
+			var xhr = new XMLHttpRequest();
+			xhr.open("GET", "/ProcessStream?pid=" + pid, true);
+			xhr.onreadystatechange = (function(pid){return function(){
+				if(xhr.readyState == 4 && xhr.status == 200){
+					var Pid = parseInt(xhr.responseText.charAt(0));
+					if(Pid === 1)
+						console.log("GOT A {" + Pid + " } ONE!");
+					document.body.querySelector("[pid='" + Pid + "'] .body").innerHTML += ParsePayload(xhr.responseText.substring(1, xhr.responseText.length));
+					PollProcess(pid, dom);
+					dom.setAttribute("failures", "0");
+				}else if(xhr.readyState == 4 && xhr.status == 201){
+					var Pid = parseInt(xhr.responseText.charAt(0));
+					if(Pid === 1)
+						console.log("GOT A {" + Pid + " } ONE!");
+					document.body.querySelector("[pid='" + Pid + "'] .body").innerHTML += ParsePayload(xhr.responseText.substring(1, xhr.responseText.length))
+						+ "<br>Press any key to continue...";
+					dom.setAttribute("state", "waiting");
+					dom.setAttribute("failures", "0");
+				}else{
+					var Pid = parseInt(xhr.responseText.charAt(0));
+					if(Pid === 1)
+						console.log("GOT A {" + Pid + " } ONE!");
+					document.body.querySelector("[pid='" + Pid + "'] .body").innerHTML += ParsePayload(xhr.responseText.substring(1, xhr.responseText.length))
+					if(parseInt(dom.getAttribute("failures")) < 100)
+						PollProcess(pid, dom);
+					else
+						return;
+				}
+			}})(pid);
+			xhr.send();
+		}
+		function CreateNewTerminal(){
+
+			var Terminal = document.createElement("div");
+
+			Terminal.className = "terminal";
+			Terminal.setAttribute("tabindex", "1");
+			Terminal.setAttribute("mode", "shell");
+			Terminal.setAttribute("buffer", "");
+			Terminal.setAttribute("state", "ready");
+			Terminal.setAttribute("failures", "0");
+			Terminal.setAttribute("flushing", "false");
+			Terminal.addEventListener("keydown", function(e){
+				HandleKeyboard(e, Terminal);
+			});
+		
+			var THeader = document.createElement("div");
+			THeader.className = "header";
+			THeader.addEventListener("mousedown", function(e){
+				StartDrag(e, Terminal);
+			});
+			THeader.innerHTML = "tty" + (tty++);
+
+			var TBody = document.createElement("div");
+			TBody.className = "body";
+			
+			Terminal.appendChild(THeader);
+			Terminal.appendChild(TBody);
+		
+			document.body.appendChild(Terminal);
+		}
+
+		function SendInput(Input, Pid, dom){
+			dom.setAttribute("buffer", dom.getAttribute("buffer") + Input);
+			var xhr = new XMLHttpRequest();
+			xhr.open("POST", "/ProcessStream", true);
+			xhr.send("pid=" + Pid + "&content=" + Input);
+			if(dom.getAttribute("flushing") === "false"){
+				Flush(Pid, dom);
+			}
+		}
+		function Flush(Pid, dom){
+			var InputQueue = dom.getAttribute("buffer").split("");
+			var ToSend = InputQueue.shift();
+			dom.setAttribute("buffer", InputQueue.join(""));
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function(){
+				if(xhr.readyState == 4 && xhr.status == 200){
+					if(dom.getAttribute("buffer").length > 0){
+						Flush(Pid, dom);
+					}else{
+						dom.setAttribute("flushing", "false");
+					}
+				}
+			}
+			xhr.open("POST", "/ProcessStream", true);
+			xhr.send("pid=" + Pid + "&content=" + ToSend);
+		}
+		
 	</script>
 </body>
 </html>

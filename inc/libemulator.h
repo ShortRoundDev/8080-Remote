@@ -65,7 +65,10 @@ Page* GetPage(short address, Process *p);
 int SetMemory(char value, unsigned short address, Process *p);
 char GetMemory(unsigned short address, Process *p);
 Process *CreateProcess(char *Program, char mode);
+void DestroyProcess(int Pid);
 
 void AddToProcessTable(Process *p);
 Process *FindInProcessTable(int pid);
+void DestroyProcessTableEntry(int pid);
+unsigned short GetMemoryShort(unsigned short memory, Process *Pinfo);
 #endif

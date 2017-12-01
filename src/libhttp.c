@@ -27,6 +27,8 @@ void SetReasonCode(char *Destination, int Code){
 		case 200:
 			strcat(ReasonPhrase, "OK");
 			break;
+		case 201:
+			strcat(ReasonPhrase, "Created");
 		case 400:
 			strcat(ReasonPhrase, "Bad Request");
 			break;

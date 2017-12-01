@@ -1,4 +1,6 @@
 #include "lib8080.h"
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -8,12 +10,14 @@ extern instruction InstructionSet[256];
 void ComplementCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 14
 	Pinfo->registers[R_F] ^= F_C;
+	Pinfo->pc++;
 }
 
 #define STC SetCarry
 void SetCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 14
 	Pinfo->registers[R_F] |= F_C;
+	Pinfo->pc++;
 }
 
 #define INR Increment
@@ -37,6 +41,7 @@ void Increment(char operator, short operand, struct Process* Pinfo){
 	CheckSign(Reg, Pinfo);
 	CheckParity(Reg, Pinfo);
 	CheckAuxCarryOut(RegOut, 1, Pinfo, Addition);
+	Pinfo->pc++;
 }
 
 #define DCR Decrement
@@ -59,12 +64,14 @@ void Decrement(char operator, short operand, struct Process* Pinfo){
 	CheckSign(Reg, Pinfo);
 	CheckParity(Reg, Pinfo);
 	CheckAuxCarryOut(Pinfo->registers[R_A], 1, Pinfo, Subtraction);
+	Pinfo->pc++;
 }
 
 #define CMA ComplementAccumulator
 void ComplementAccumulator(char operator, short operand, struct Process* Pinfo){
 	//Page 15
 	Pinfo->registers[R_A] = ~(Pinfo->registers[R_A]);
+	Pinfo->pc++;
 }
 
 #define DAA DecimalAdjustAccumulator
@@ -90,6 +97,7 @@ void DecimalAdjustAccumulator(char operator, short operand, struct Process* Pinf
 	CheckZero(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
 	CheckParity(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define NOP NullInstruction
@@ -118,6 +126,7 @@ void Move(char operator, short operand, struct Process* Pinfo){
 		short MemPtr = (Pinfo->registers[R_H] << 8) | Pinfo->registers[R_L];
 		SetMemory(value, MemPtr, Pinfo);
 	}
+	Pinfo->pc++;
 
 }
 
@@ -135,6 +144,7 @@ void StoreAccumulator(char operator, short operand, struct Process* Pinfo){
 		SetMemory(value, MemPtr, Pinfo);
 //		Pinfo->memory[Concatenate(R_B, R_C, Pinfo)] = Pinfo->registers[R_A];
 	}
+	Pinfo->pc++;
 }
 
 #define LDAX LoadAccumulator
@@ -147,6 +157,7 @@ void LoadAccumulator(char operator, short operand, struct Process* Pinfo){
 		unsigned char value = GetMemory(Concatenate(R_B, R_C, Pinfo), Pinfo);
 		Pinfo->registers[R_A] = value;
 	}
+	Pinfo->pc++;
 }
 
 #define ADD Add
@@ -165,6 +176,7 @@ void Add(char operator, short operand, struct Process* Pinfo){
 	CheckZero(R_A, Pinfo);
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 #define ADC AddCarry
 void AddCarry(char operator, short operand, struct Process* Pinfo){
@@ -185,6 +197,7 @@ void AddCarry(char operator, short operand, struct Process* Pinfo){
 	CheckZero(R_A, Pinfo);
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define SUB Subtract
@@ -204,6 +217,7 @@ void Subtract(char operator, short operand, struct Process* Pinfo){
 	CheckZero(R_A, Pinfo);
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define SBB SubtractBorrow
@@ -225,6 +239,7 @@ void SubtractBorrow(char operator, short operand, struct Process* Pinfo){
 	CheckZero(R_A, Pinfo);
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define ANA AND
@@ -242,6 +257,7 @@ void AND(char operator, short operand, struct Process* Pinfo){
 	CheckZero(R_A, Pinfo);	
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define XRA XOR
@@ -260,6 +276,7 @@ void XOR(char operator, short operand, struct Process* Pinfo){
 	CheckZero(R_A, Pinfo);	
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define OR OR
@@ -267,17 +284,22 @@ void OR(char operator, short operand, struct Process* Pinfo){
 	//Page 20
 	int Reg = operator & 7;
 	unsigned char value = 0;
-	if(Reg != 6)
+	if(Reg != 6){
 		value = Pinfo->registers[Reg];
-	else
+		if(Reg == 7){
+			
+		}
+	}
+	else{
 		value = GetMemory(Concatenate(R_H, R_L, Pinfo), Pinfo);
-	
+	}
 	Pinfo->registers[R_A] |= value;
 	Pinfo->registers[R_F] &= ~F_C;
 	Pinfo->registers[R_F] |= F_A;
 	CheckZero(R_A, Pinfo);	
 	CheckParity(R_A, Pinfo);
 	CheckSign(R_A, Pinfo);
+	Pinfo->pc++;
 }
 
 #define CMP CompareAccumulator
@@ -309,6 +331,7 @@ void CompareAccumulator(char operator, short operand, struct Process* Pinfo){
 	if((Acc & 0x70) ^ (diff & 0x80)){
 		Pinfo->registers[R_F] ^= F_C;
 	}
+	Pinfo->pc++;
 }
 
 #define RLC RotateLeft
@@ -317,6 +340,7 @@ void RotateLeft(char operator, short operand, struct Process* Pinfo){
 	unsigned char Acc = Pinfo->registers[R_A];
 	Pinfo->registers[R_F] |= (Acc & 0x80) && 1 ? F_C : 0;
 	Pinfo->registers[R_A] = (Acc << 1) | Pinfo->registers[R_F] & F_C;
+	Pinfo->pc++;
 }
 
 #define RRC RotateRight
@@ -325,6 +349,7 @@ void RotateRight(char operator, short operand, struct Process* Pinfo){
 	unsigned char Acc = Pinfo->registers[R_A];
 	Pinfo->registers[R_F] |= (Acc & 0x01);
 	Pinfo->registers[R_A] = (Acc >> 1) | ((Pinfo->registers[R_F] & F_C) << 7);
+	Pinfo->pc++;
 }
 
 #define RAL RotateLeftCarry
@@ -334,6 +359,7 @@ void RotateLeftCarry(char operator, short operand, struct Process* Pinfo){
 	unsigned char Carry = Pinfo->registers[R_F] & F_C;
 	Pinfo->registers[R_F] |= (Acc & 0x80) && 1;
 	Pinfo->registers[R_A] = (Acc << 1) | Carry;
+	Pinfo->pc++;
 }
 
 #define RAR RotateRightCarry
@@ -343,51 +369,179 @@ void RotateRightCarry(char operator, short operand, struct Process* Pinfo){
 	unsigned char Carry = Pinfo->registers[R_F] & F_C;
 	Pinfo->registers[R_F] &= (Acc & 1);
 	Pinfo->registers[R_A] = (Acc >> 1) | Carry << 7;
+	Pinfo->pc++;
 }
 
 #define PUSH Push
 void Push(char operator, short operand, struct Process* Pinfo){
 	//Page 22
+	int RP = GetRegister(operator, 5, 4);
+	unsigned short value = 0;
+
+	if(RP == 0)
+		value = Concatenate(R_B, R_C, Pinfo);
+	else if(RP == 1)
+		value = Concatenate(R_D, R_E, Pinfo);
+	else if(RP == 2)
+		value = Concatenate(R_H, R_L, Pinfo);
+	else if(RP == 3)
+		value = Concatenate(R_F, R_A, Pinfo);
+	
+	SetMemory((unsigned char)(value & 0xff), Pinfo->sp - 2, Pinfo);
+	SetMemory((unsigned char)(value >> 8), Pinfo->sp - 1, Pinfo);
+	
+	Pinfo->sp -= 2;
+	Pinfo->pc++;
 }
 
 #define POP Pop
 void Pop(char operator, short operand, struct Process* Pinfo){
 	//Page 23
+	int RP = GetRegister(operator, 5, 4);
+	unsigned short value = 0;
+	if(RP == 0){
+		Pinfo->registers[R_B] = GetMemory(Pinfo->sp + 1, Pinfo);
+		Pinfo->registers[R_C] = GetMemory(Pinfo->sp, Pinfo);
+	}else if(RP == 1){
+		Pinfo->registers[R_D] = GetMemory(Pinfo->sp + 1, Pinfo);
+		Pinfo->registers[R_E] = GetMemory(Pinfo->sp, Pinfo);
+	}else if(RP == 2){
+		Pinfo->registers[R_H] = GetMemory(Pinfo->sp + 1, Pinfo);
+		Pinfo->registers[R_L] = GetMemory(Pinfo->sp, Pinfo);
+	}else if(RP == 3){
+		Pinfo->registers[R_A] = GetMemory(Pinfo->sp + 1, Pinfo);
+		Pinfo->registers[R_F] = GetMemory(Pinfo->sp, Pinfo);
+			//2nd flag bit always 1
+		Pinfo->registers[R_F] |= 0x02;
+			//4th & 6th flag bits always 0
+		Pinfo->registers[R_F] &= ~(0x08 | 0x20);
+	}
+	Pinfo->sp += 2;
+	Pinfo->pc++;
 }
 
 #define DAD DoubleAdd
 void DoubleAdd(char operator, short operand, struct Process* Pinfo){
 	//Page 24
+	int RP = GetRegister(operator, 5, 4);
+	unsigned int value = 0;
+	if(RP == 0)
+		value = Concatenate(R_B, R_C, Pinfo);
+	else if(RP == 1)
+		value = Concatenate(R_D, R_E, Pinfo);
+	else if(RP == 2)
+		value = Concatenate(R_H, R_L, Pinfo);
+	else if(RP == 3)
+		value = Pinfo->sp;
+
+	unsigned int _operand = Concatenate(R_H, R_L, Pinfo);
+	unsigned int sum = value + _operand;
+	if(sum > 0xffff)
+		Pinfo->registers[R_F] |= F_C;
+
+	Pinfo->registers[R_L] = (unsigned char)(sum & 0xff);
+	Pinfo->registers[R_H] = (unsigned char)((sum >> 8) & 0xff);
+	Pinfo->pc++;
 }
 
 #define INX IncrementPair
 void IncrementPair(char operator, short operand, struct Process* Pinfo){
 	//Page 24
+	int RP = GetRegister(operator, 5, 4);
+	unsigned int value = 0;
+	if(RP == 0){
+		value = Concatenate(R_B, R_C, Pinfo);
+		value++;
+		Pinfo->registers[R_C] = value & 0xff;
+		Pinfo->registers[R_C] = (value >> 8) & 0xff;
+	}else if(RP == 1){
+		value = Concatenate(R_D, R_E, Pinfo);
+		value++;
+		Pinfo->registers[R_D] = value & 0xff;
+		Pinfo->registers[R_E] = (value >> 8) & 0xff;
+	}else if(RP == 2){
+		value = Concatenate(R_H, R_L, Pinfo);
+		value++;
+		Pinfo->registers[R_L] = value & 0xff;
+		Pinfo->registers[R_H] = (value >> 8) & 0xff;
+	}else if(RP == 3){
+		Pinfo->sp++;
+	}
+	Pinfo->pc++;
 }
 
 #define DCX DecrementPair
 void DecrementPair(char operator, short operand, struct Process* Pinfo){
 	//Page 24
+	int RP = GetRegister(operator, 5, 4);
+	unsigned int value = 0;
+	if(RP == 0){
+		value = Concatenate(R_B, R_C, Pinfo);
+		value--;
+		Pinfo->registers[R_C] = value & 0xff;
+		Pinfo->registers[R_C] = (value >> 8) & 0xff;
+	}else if(RP == 1){
+		value = Concatenate(R_D, R_E, Pinfo);
+		value--;
+		Pinfo->registers[R_D] = value & 0xff;
+		Pinfo->registers[R_E] = (value >> 8) & 0xff;
+	}else if(RP == 2){
+		value = Concatenate(R_H, R_L, Pinfo);
+		value--;
+		Pinfo->registers[R_H] = value & 0xff;
+		Pinfo->registers[R_L] = (value >> 8) & 0xff;
+	}else if(RP == 3){
+		Pinfo->sp--;
+	}
+	Pinfo->pc++;
 }
 
 #define XCHG ExchangeRegisters
 void ExchangeRegisters(char operator, short operand, struct Process* Pinfo){
-
+	unsigned short HL = Concatenate(R_H, R_L, Pinfo);
+	unsigned short DE = Concatenate(R_D, R_E, Pinfo);
+	unsigned short tmp = HL;
+	HL = DE;
+	DE = tmp;
+	Pinfo->pc++;
 }
 
 #define XTHL ExchangeStack
 void ExchangeStack(char operator, short operand, struct Process* Pinfo){
 	//Page 25
+	unsigned char H = Pinfo->registers[R_H];
+	unsigned char L = Pinfo->registers[R_L];
+	Pinfo->registers[R_L] = GetMemory(Pinfo->sp, Pinfo);
+	Pinfo->registers[R_H] = GetMemory(Pinfo->sp + 1, Pinfo);
+	SetMemory(L, Pinfo->sp, Pinfo);
+	SetMemory(H, Pinfo->sp + 1, Pinfo);
+	Pinfo->pc++;
 }
 
 #define SPHL LoadSP
 void LoadSP(char operator, short operand, struct Process* Pinfo){
 	//Page 25
+	Pinfo->sp = Concatenate(R_H, R_L, Pinfo);
+	Pinfo->pc++;
 }
 
 #define LXI LoadImmediate
 void LoadImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 26
+	int RP = GetRegister(operator, 5, 4);
+	if(RP == 0){
+		Pinfo->registers[R_C] = operand & 0xff;
+		Pinfo->registers[R_B] = (operand >> 8) & 0xff;
+	}else if(RP == 1){
+		Pinfo->registers[R_E] = operand & 0xff;
+		Pinfo->registers[R_D] = (operand >> 8) & 0xff;
+	}else if(RP == 2){
+		Pinfo->registers[R_L] = operand & 0xff;
+		Pinfo->registers[R_H] = (operand >> 8) & 0xff;
+	}else if(RP == 3){
+		Pinfo->sp = operand;
+	}
+	Pinfo->pc += 3;
 }
 
 #define MVI MoveImmediate
@@ -396,245 +550,590 @@ void MoveImmediate(char operator, short operand, struct Process* Pinfo){
 	if(reg == R_M){
 			//TODO: Abstract memory access to support pages
 //		Pinfo->memory[Pinfo->registers[R_M]] = operand;
-		return;
+		SetMemory(operand, Concatenate(R_H, R_L, Pinfo), Pinfo);
 	}else{
 		Pinfo->registers[reg] = operand;
 	}
-	Pinfo->pc++;
+	Pinfo->pc += 3;
 }
 
 #define ADI AddImmediate
 void AddImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 27
-	Pinfo->registers[R_A] += operand;
-	Pinfo->pc++;
+
+	int value = Pinfo->registers[R_A];
+	int _operand = (operand >> 8) & 0xff;
+	Pinfo->registers[R_A] = value + _operand;
+
+	CheckCarryOut(value, _operand, Pinfo, Addition);
+	CheckAuxCarryOut(value, _operand, Pinfo, Addition);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+
+	Pinfo->pc += 2;
 }
 
 #define ACI AddImmediateCarry
 void AddImmediateCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 27
+	unsigned int carry = Pinfo->registers[R_F] & F_C;
+	
+	int value = Pinfo->registers[R_A];
+	int _operand = (operand >> 8) & 0xff;
+	Pinfo->registers[R_A] = value + _operand + carry;
+
+	CheckCarryOut(value, _operand + carry, Pinfo, Addition);
+	CheckAuxCarryOut(value, _operand + carry, Pinfo, Addition);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+
+	Pinfo->pc += 2;
 }
 
 #define SUI SubtractImmediate
 void SubtractImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 27
+	
+	int value = Pinfo->registers[R_A];
+	int _operand = ~((operand >> 8) & 0xff);
+	Pinfo->registers[R_A] = value + _operand;
+
+	CheckCarryOut(value, _operand, Pinfo, Subtraction);
+	CheckAuxCarryOut(value, _operand, Pinfo, Subtraction);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+
+	Pinfo->pc += 2;
 }
 
 #define SBI SubtractImmediateBorrow
 void SubtractImmediateBorrow(char operator, short operand, struct Process* Pinfo){
 	//Page 28
+	int carry = Pinfo->registers[R_F] & F_C;
+	int value = Pinfo->registers[R_A];
+	int _operand = ~(((operand >> 8) & 0xff) + carry);
+	Pinfo->registers[R_A] = value + _operand;
+
+	CheckCarryOut(value, _operand, Pinfo, Subtraction);
+	CheckAuxCarryOut(value, _operand, Pinfo, Subtraction);
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+
+	Pinfo->pc += 2;
 }
 
 #define ANI ANDImmediate
 void ANDImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 28
+	int value = (operand >> 8) & 0xff;
+	Pinfo->registers[R_A] &= value;
+	Pinfo->registers[R_F] &= ~F_C;
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+
+	Pinfo->pc += 2;
 }
 
 #define XRI XORImmediate
 void XORImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 29
+	int value = (operand >> 8) & 0xff;
+	Pinfo->registers[R_A] ^= value;
+	Pinfo->registers[R_F] &= ~F_C;
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+	
+	Pinfo->pc += 2;
 }
 
 #define ORI ORImmediate
 void ORImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 29
+	int value = (operand >> 8) & 0xff;
+	Pinfo->registers[R_A] |= value;
+	Pinfo->registers[R_F] &= ~F_C;
+	CheckZero(R_A, Pinfo);
+	CheckParity(R_A, Pinfo);
+	CheckSign(R_A, Pinfo);
+	
+	Pinfo->pc += 2;
 }
 
 #define CPI CompareImmediate
 void CompareImmediate(char operator, short operand, struct Process* Pinfo){
 	//Page 29
+	unsigned char value = (operand >> 8) & 0xff;
+	unsigned char Acc = Pinfo->registers[R_A];
+	
+	unsigned int diff = Acc - value;
+	if(diff == 0){
+		Pinfo->registers[R_F] |= F_Z;
+	}else{
+		Pinfo->registers[R_F] &= ~F_Z;
+	}
+
+	if(value > Acc){
+		Pinfo->registers[R_F] |= F_C;
+	}else{
+		Pinfo->registers[R_F] &= ~F_C;
+	}
+
+		//Different signs, switch F_C
+	if((Acc & 0x70) ^ (diff & 0x80)){
+		Pinfo->registers[R_F] ^= F_C;
+	}
+	
+	Pinfo->pc += 2;
 }
 
 #define STA StoreDirect
 void StoreDirect(char operator, short operand, struct Process* Pinfo){
 	//Page 30
+	SetMemory(Pinfo->registers[R_A], operand, Pinfo);
+	
+	Pinfo->pc += 3;
 }
 
 #define LDA LoadDirect
 void LoadDirect(char operator, short operand, struct Process* Pinfo){
 	//Page 30
+	Pinfo->registers[R_A] = GetMemory(operand, Pinfo);
+	
+	Pinfo->pc += 3;
 }
 
 #define SHLD StoreHLDirect
 void StoreHLDirect(char operator, short operand, struct Process* Pinfo){
 	//Page 30
+	SetMemory(Pinfo->registers[R_L], operand, Pinfo);
+	SetMemory(Pinfo->registers[R_H], operand + 1, Pinfo);
+	
+	Pinfo->pc += 3;
 }
 
 #define LHLD LoadHLDirect
 void LoadHLDirect(char operator, short operand, struct Process* Pinfo){
 	//Page 31
+	unsigned char L = GetMemory(operand, Pinfo);
+	unsigned char H = GetMemory(operand + 1, Pinfo);
+	
+	Pinfo->registers[R_H] = H;
+	Pinfo->registers[R_L] = L;
+	
+	Pinfo->pc += 3;
 }
 
 #define PCHL LoadPC
 void LoadPC(char operator, short operand, struct Process* Pinfo){
 	//Page 31
+	Pinfo->pc = Concatenate(R_H, R_L, Pinfo);
+	
+	Pinfo->pc++;
 }
 
 #define JMP Jump
 void Jump(char operator, short operand, struct Process* Pinfo){
 	//Page 32
+	Pinfo->pc = operand;
 }
 
 #define JC JumpIfCarry
 void JumpIfCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 32
+	if(Pinfo->registers[R_F] & F_C){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define JNC JumpNoCarry
 void JumpNoCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 32
+	if(!(Pinfo->registers[R_F] & F_C)){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define JZ JumpIfZero
 void JumpIfZero(char operator, short operand, struct Process* Pinfo){
 	//Page 32
+	if(Pinfo->registers[R_F] & F_Z){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define JNZ JumpNotZero
 void JumpNotZero(char operator, short operand, struct Process* Pinfo){
 	//Page 33
+	if(!(Pinfo->registers[R_F] & F_Z)){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define JM JumpIfMinus
 void JumpIfMinus(char operator, short operand, struct Process* Pinfo){
 	//Page 33
+	if(Pinfo->registers[R_F] & F_S){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
+
 }
 
 #define JP JumpIfPositive
 void JumpIfPositive(char operator, short operand, struct Process* Pinfo){
 	//Page 33
+	if(!(Pinfo->registers[R_F] & F_S)){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define JPE JumpIfEven
 void JumpIfEven(char operator, short operand, struct Process* Pinfo){
 	//Page 33
+	if(Pinfo->registers[R_F] & F_P){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define JPO JumpIfOdd
 void JumpIfOdd(char operator, short operand, struct Process* Pinfo){
 	//Page 33
+	if(!(Pinfo->registers[R_F] & F_P)){
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CALL Call
 void Call(char operator, short operand, struct Process* Pinfo){
 	//Page 34
+	unsigned short value = Pinfo->pc;
+	SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+	SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+	Pinfo->sp -= 2;
+	Pinfo->pc = operand;
 }
 
 #define CC CallIfCarry
 void CallIfCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 34
+	if(Pinfo->registers[R_F] & F_C){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CNC CallNoCarry
 void CallNoCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 34
+	if(!(Pinfo->registers[R_F] & F_C)){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CZ CallIfZero
 void CallIfZero(char operator, short operand, struct Process* Pinfo){
 	//Page 35
+	if(Pinfo->registers[R_F] & F_Z){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CNZ CallNotZero
 void CallNotZero(char operator, short operand, struct Process* Pinfo){
 	//Page 35
+	if(!(Pinfo->registers[R_F] & F_Z)){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CM CallIfMinus
 void CallIfMinus(char operator, short operand, struct Process* Pinfo){
 	//Page 35
+	if(Pinfo->registers[R_F] & F_S){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CP CallIfPlus
 void CallIfPlus(char operator, short operand, struct Process* Pinfo){
 	//Page 35
+	if(!(Pinfo->registers[R_F] & F_S)){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CPE CallIfEven
 void CallIfEven(char operator, short operand, struct Process* Pinfo){
 	//Page 35
+	if(Pinfo->registers[R_F] & F_P){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define CPO CallIfOdd
 void CallIfOdd(char operator, short operand, struct Process* Pinfo){
 	//Page 35
+	if(!(Pinfo->registers[R_F] & F_P)){
+		unsigned short value = Pinfo->pc;
+		SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+		SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+		Pinfo->sp -= 2;
+		Pinfo->pc = operand;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RET Return
 void Return(char operator, short operand, struct Process* Pinfo){
 	//Page 36
+	unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+	unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+	unsigned short ReturnAddress = (high << 8) | low;
+	
+	Pinfo->pc = ReturnAddress;
+	Pinfo->sp += 2;
 }
 
 #define RC ReturnIfCarry
 void ReturnIfCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 36
+	if(Pinfo->registers[R_F] & F_C){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RNC ReturnNoCarry
 void ReturnNoCarry(char operator, short operand, struct Process* Pinfo){
 	//Page 36
+	if(!(Pinfo->registers[R_F] & F_C)){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RZ ReturnIfZero
 void ReturnIfZero(char operator, short operand, struct Process* Pinfo){
 	//Page 36
+	if(Pinfo->registers[R_F] & F_Z){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RNZ ReturnNotZero
 void ReturnNotZero(char operator, short operand, struct Process* Pinfo){
 	//Page 36
+	if(!(Pinfo->registers[R_F] & F_Z)){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RM ReturnIfMinus
 void ReturnIfMinus(char operator, short operand, struct Process* Pinfo){
 	//Page 37
+	if(Pinfo->registers[R_F] & F_S){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RP ReturnIfPlus
 void ReturnIfPlus(char operator, short operand, struct Process* Pinfo){
 	//Page 37
+	if(!(Pinfo->registers[R_F] & F_S)){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RPE ReturnIfEven
 void ReturnIfEven(char operator, short operand, struct Process* Pinfo){
 	//Page 37
+	if(Pinfo->registers[R_F] & F_P){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RPO ReturnIfOdd
 void ReturnIfOdd(char operator, short operand, struct Process* Pinfo){
 	//Page 37
+	if(!(Pinfo->registers[R_F] & F_P)){
+		unsigned short high = GetMemory(Pinfo->sp + 1, Pinfo);
+		unsigned char low  = GetMemory(Pinfo->sp, Pinfo);
+		unsigned short ReturnAddress = (high << 8) | low;
+		
+		Pinfo->pc = ReturnAddress;
+		Pinfo->sp += 2;
+	}else{
+		Pinfo->pc += 3;
+	}
 }
 
 #define RST Reset
 void Reset(char operator, short operand, struct Process* Pinfo){
 	//Page 37
+	if(Pinfo->inte == 0)
+		return;
+	int RstLocation = (GetRegister(operator, 5, 3) << 3);
+	unsigned short value = Pinfo->pc;
+	SetMemory(value & 0xff, Pinfo->sp - 2, Pinfo);
+	SetMemory((value >> 8) & 0xff, Pinfo->sp - 1, Pinfo);
+	Pinfo->sp -= 2;
+	Pinfo->pc = RstLocation;
 }
 
 #define EI EnableInterrupts
 void EnableInterrupts(char operator, short operand, struct Process* Pinfo){
 	//Page 38
+	Pinfo->inte = 1;
+	
+	Pinfo->pc++;
 }
 
 #define DI DisableInterrupts
 void DisableInterrupts(char operator, short operand, struct Process* Pinfo){
 	//Page 38
+	Pinfo->inte = 0;
+	
+	Pinfo->pc++;
 }
 
 #define IN Input
 void Input(char operator, short operand, struct Process* Pinfo){
 	//Page 38
+	int BytesAvailable = 0;
+	int err = ioctl(Pinfo->In, FIONREAD, &BytesAvailable);
+	if(BytesAvailable == 0){
+		Pinfo->registers[R_A] = 0;
+	}else{
+		char Out = 0;
+		read(Pinfo->In, &Out, 1);
+		Pinfo->registers[R_A] = Out;
+	}
+	
+	Pinfo->pc+=2;
 }
 
 #define OUT Output
 void Output(char operator, short operand, struct Process* Pinfo){
 	//Page 39
+	write(Pinfo->Out, &Pinfo->registers[R_A], 1);
+	Pinfo->pc+=2;
 }
 
 #define HLT Halt
 #define HALT Halt
 void Halt(char operator, short operand, struct Process* Pinfo){
 	//Page 39
-	printf("hello world\n");
+	Pinfo->state = -1;
 }
 
 void LoadInstructionSet(){
@@ -835,6 +1334,7 @@ void LoadInstructionSet(){
 	InstructionSet[0xc8] = RZ;
 	InstructionSet[0xc9] = RET;
 	InstructionSet[0xca] = JZ;
+	InstructionSet[0xcb] = JMP;
 	InstructionSet[0xcc] = CZ;
 	InstructionSet[0xcd] = CALL;
 	InstructionSet[0xce] = ACI;
@@ -924,7 +1424,6 @@ void CheckCarryOut(unsigned short a, unsigned short b, Process *Pinfo, operation
 
 void CheckAuxCarryOut(unsigned short a, unsigned short b, Process *Pinfo, operation op){
 	unsigned int r = op(a & 0x0f, b & 0x0f);
-	printf("Aux carry out: %d\n", r);
 	if(r > 0xf){
 		Pinfo->registers[R_F] |= F_A;
 	}else{
@@ -940,10 +1439,11 @@ void CheckZero(int Reg, struct Process* Pinfo){
 	}else{
 		result = Pinfo->registers[Reg];
 	}
-	if(result == 0)
+	if(result == 0){
 		Pinfo->registers[R_F] |= F_Z;
-	else
+	}else{
 		Pinfo->registers[R_F] &= ~F_Z;
+	}
 }
 
 void CheckSign(int Reg, struct Process* Pinfo){
@@ -965,7 +1465,5 @@ unsigned int Addition(unsigned char a, unsigned char b){
 }
 
 unsigned int Subtraction(unsigned char a, unsigned char b){
-	printf("Subtracting: %u - %u\n", a, b);
-	printf("Negative b: %d\n", (unsigned char)~b);
 	return (unsigned int) a + ((unsigned char)~b);
 }

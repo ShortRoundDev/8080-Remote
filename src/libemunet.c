@@ -72,16 +72,20 @@ void *HandleRequest(void *_ServerFd){
 	strftime(ServerTime, 1024, "%a, %d %b %Y %H:%M:%S GMT", Info);
 	
 	ValRead = read(ServerFd, Buffer, 10000);
-	printf("BufferLength: %ld\n",strlen(Buffer));
-	printf("-----\n%s\n-----\n", Buffer);
+	//printf("BufferLength: %ld\n",strlen(Buffer));
+	if(strlen(Buffer) == 0){
+		return NULL;
+	}
+	//printf("-----\n%s\n-----\n", Buffer);
 	char Method[16] = {0};
 	char Endpoint[16] = {0};
 	char Args[128] = {0};
-	char *Cookies = malloc(5000);
-		printf("root\n");
-	GetCookies(Cookies, Buffer);
+//	char *Cookies = malloc(5000);
+//		printf("root\n");
+	//GetCookies(Cookies, Buffer);
 	GetEndpoint(Buffer, Method, Endpoint, Args);
 
+	//printf("ENDPOINT: %s\n", Method);
 	if(!strcmp(Endpoint, "/")){
 		GetFile("html/index.html", ServerFd);
 		//Root(ServerFd, ServerTime);
@@ -90,20 +94,28 @@ void *HandleRequest(void *_ServerFd){
 	}else if(!strcmp(Method, "POST") && !strcmp(Endpoint, "/Register")){
 		Register(ServerFd, ServerTime, Method, Args);
 	}else if(!strcmp(Method, "GET") && !strcmp(Endpoint, "/Terminal")){
-		printf("Getting Terminal\n");
-		if(!strcmp(Cookies, "Not Found!")){
-			printf("Couldn't Find Cookie\n");
-			NotFound(ServerFd, ServerTime);
-		}else{
-			printf("Fetching Terminal\n");
-			Terminal(ServerFd, Cookies);
-		}
+		//printf("Getting Terminal\n");
+	//	if(!strcmp(Cookies, "Not Found!")){
+	//		printf("Couldn't Find Cookie\n");
+	//		NotFound(ServerFd, ServerTime);
+	//	}else{
+			//printf("Fetching Terminal\n");
+			Terminal(ServerFd, NULL);
+	//	}
 	}else if(!strcmp(Method, "GET") && !strcmp(Endpoint, "/ProcessStream")){
 		ReadProcessStream(ServerFd, Args, ServerTime);
+	}else if(!strcmp(Method, "POST") && !strcmp(Endpoint, "/ProcessStream")){
+		//printf("Write Process Steam\n");
+		WriteProcessStream(ServerFd, Args, ServerTime);
+	}else if(!strcmp(Method, "POST") && !strcmp(Endpoint, "/CreateProcess")){
+		//printf("Creating process\n");
+		HTTPCreateProcess(ServerFd, Args, ServerTime);
 	}else{
 		NotFound(ServerFd, ServerTime);
 	}
-	free(Cookies);
+	//printf("FREEING\n");
+//	free(Cookies);
+	//printf("FREED\n");
 	close(ServerFd);
 	return NULL;
 }
@@ -114,7 +126,7 @@ char *GetEndpoint(char *Request, char *Method, char *Destination, char *Params){
 	strncpy(Buffer, Request, strlen(Request));
 	
 	char *_Method 		= strtok(Buffer, " ");
-	char *_Destination 	= strtok(NULL, " ?");
+	char *_Destination 	= strtok(_Method + strlen(_Method) + 1, " ?");
 	
 	strncpy(Destination, 	_Destination, 	strlen(_Destination));
 	strncpy(Method, 	_Method, 	strlen(_Method));
@@ -135,7 +147,7 @@ char *GetEndpoint(char *Request, char *Method, char *Destination, char *Params){
 void Register(int ServerFd, char *ServerTime, char *Method, char *Params){
 	FILE *Passwords = fopen("server/passwords", "r");
 	if(Passwords == NULL){
-		printf("couldnt open passwords\n");
+		//printf("couldnt open passwords\n");
 		return;
 	}
 	char Line[256] = {0};
@@ -144,7 +156,7 @@ void Register(int ServerFd, char *ServerTime, char *Method, char *Params){
 	char *Username = strtok(Params, ";");
 	char *Password = Username + 2;
 	if(Password == NULL || Username == NULL){
-		printf("no password\n");
+		//printf("no password\n");
 		NotFound(ServerFd, ServerTime);
 		return;
 	}
@@ -182,10 +194,10 @@ void Register(int ServerFd, char *ServerTime, char *Method, char *Params){
 void Login(int ServerFd, char *ServerTime, char *Method, char *Params){
 	FILE *Passwords = fopen("server/passwords", "r");
 	if(Passwords == NULL){
-		printf("couldnt open passwords\n");
+		//printf("couldnt open passwords\n");
 		return;
 	}
-	printf("Trying to log in...\n");
+	//printf("Trying to log in...\n");
 	char Line[256] = {0};
 	char *User;
 	
@@ -240,7 +252,7 @@ void LoginUser(int ServerFd){
 	SetReasonCode(Buffer, 200);
 
 	char *SessionId;
-	printf("Generating SID...");
+	//printf("Generating SID...");
 	GenerateSession(&SessionId);
 	long int Expiration_t = time(NULL) + 7200;
 	printf("...done\n");
@@ -291,7 +303,7 @@ int ValidateSession(char *SessionId){
 	char NotExpired = 0;
 
 	while(fscanf(Sessions, "%s | %lu\n", _SessionId, &Expiration) != EOF){
-		printf("Checking %s\n", _SessionId);
+		//printf("Checking %s\n", _SessionId);
 		if(!strcmp(SessionId, _SessionId)){
 			NotExpired = 1;
 			printf("Found token\n");
@@ -325,29 +337,32 @@ void Terminal(int ServerFd, char *Request){
 	char ServerTime[1024];
 	FormatDate(time(NULL), ServerTime);
 
-	printf("Getting Session ID\n");
-	char *SessionHeader = strstr(Request, "SessionId=");
+//	printf("Getting Session ID\n");
+/*	char *SessionHeader = strstr(Request, "SessionId=");
 
 	if(SessionHeader == NULL){
 		printf("no cookie provided\n");
 		NotFound(ServerFd, ServerTime);
 		return;
 
-	}
-	char *SessionId = strtok(SessionHeader + strlen("SessionId="), "; \r");
-	printf("Successfully found Session Header\n");
+//	}*/
+//	char *SessionId = strtok(SessionHeader + strlen("SessionId="), "; \r");
+//	printf("Successfully found Session Header\n");
 
-	if(!ValidateSession(SessionId)){
-		printf("Cannot validate\n");
-		NotFound(ServerFd, ServerTime);
-		return;
-	}
-	printf("Validated Session\n");
+//	if(!ValidateSession(SessionId)){
+//		printf("Cannot validate\n");
+//		NotFound(ServerFd, ServerTime);
+//		return;
+//	}
+//	printf("Validated Session\n");
 	GetFile("html/desktop.html", ServerFd);
 }
 
 void ReadProcessStream(int ServerFd, char *Args, char *ServerTime){
 	int Pid = atoi(Args + strlen("pid="));
+	if(Pid == 1){
+		printf("Reading from #1!\n");
+	}
 	Process *Pinfo = FindInProcessTable(Pid);
 	if(Pinfo == NULL){
 		NotFound(ServerFd, ServerTime);
@@ -358,28 +373,104 @@ void ReadProcessStream(int ServerFd, char *Args, char *ServerTime){
 
 	int err = ioctl(Pinfo->Out, FIONREAD, &BytesAvailable);
 	BytesAvailable = fmin(BytesAvailable, 9000);
-	char *Output = calloc(BytesAvailable, 1);
+	char *Output = calloc(BytesAvailable + 1, 1);
 	
 	read(Pinfo->Out, Output, BytesAvailable);
 	char SizeStr[100];
-	sprintf(SizeStr, "%d", BytesAvailable);
+	sprintf(SizeStr, "%d", BytesAvailable + 1);
 	
-	SetReasonCode(Buffer, 200);
+	if(Pinfo->state == -1 && BytesAvailable != 9000){
+		DestroyProcess(Pinfo->Pid);
+		SetReasonCode(Buffer, 201);
+	}else{
+		SetReasonCode(Buffer, 200);
+	}
 	SetResponseHeader(Buffer, "Date", ServerTime);
 	SetResponseHeader(Buffer, "Server", "8080 Remote v0.1");
 	SetResponseHeader(Buffer, "Content-Length", SizeStr);
 	SetResponseHeader(Buffer, "Connection", "Closed");
 	SetResponseHeader(Buffer, "Content-Type", "text/html; charset=iso-8859-1");
 	strcat(Buffer, "\r\n");
-	strcat(Buffer, Output);
+	char *_Output = calloc(BytesAvailable + 1, 1);
+	strcat(_Output, Args + strlen("pid="));
+	strcat(_Output, Output);
+	strcat(Buffer, _Output);
 	
 	send(ServerFd, Buffer, strlen(Buffer), 0);
+	free(_Output);
 	free(Output);
+
 }
 
 void WriteProcessStream(int ServerFd, char *Args, char *ServerTime){
+	char *PidArg = strtok(Args, "&");
+	if(PidArg == NULL){
+		NotFound(ServerFd, ServerTime);
+		return;
+	}
+	char *PayloadArg = PidArg + strlen(PidArg) + 1;
+	char *Pid = strtok(PidArg, "=");
+	Pid += strlen(Pid) + 1;
+	char *Payload = strtok(PayloadArg, "=");
+	Payload += strlen(Payload) + 1;
+	//printf("Payload: %s\n", Payload);
+
+	Process *Pinfo = FindInProcessTable(atoi(Pid));
+	if(Pinfo == NULL){
+		NotFound(ServerFd, ServerTime);
+		return;
+	}
+	char Buffer[10000];
+
+	/*int err = ioctl(Pinfo->Out, FIONREAD, &BytesAvailable);
+	BytesAvailable = fmin(BytesAvailable, 9000);
+	char *Output = calloc(BytesAvailable, 1);*/
+	
+	/*read(Pinfo->Out, Output, BytesAvailable);
+	char SizeStr[100];
+	sprintf(SizeStr, "%d", BytesAvailable);*/
+	
+	write(Pinfo->In, Payload, strlen(Payload));
+	
+	SetReasonCode(Buffer, 200);
+	SetResponseHeader(Buffer, "Date", ServerTime);
+	SetResponseHeader(Buffer, "Server", "8080 Remote v0.1");
+	SetResponseHeader(Buffer, "Content-Length", "3");
+	SetResponseHeader(Buffer, "Connection", "Closed");
+	SetResponseHeader(Buffer, "Content-Type", "text/html; charset=iso-8859-1");
+	strcat(Buffer, "\r\n");
+	strcat(Buffer, "200");
+	
+	send(ServerFd, Buffer, strlen(Buffer), 0);
 }
 
 void GetAllPrograms(int ServerFd, char *ServerTime){
 	
+}
+
+void HTTPCreateProcess(int ServerFd, char *Args, char *ServerTime){
+	char *ProgramName = strtok(Args, "=");
+	ProgramName += strlen(ProgramName) + 1;
+	Process *NewProcess = CreateProcess(ProgramName, MODE_HEX);
+	if(NewProcess == NULL){
+		NotFound(ServerFd, ServerTime);
+		return;
+	}
+
+	char Pid[4];
+	sprintf(Pid, "%d", NewProcess->Pid);
+	char PidLength[10];
+	sprintf(PidLength, "%d", strlen(Pid));
+	
+	char Buffer[10000];
+	SetReasonCode(Buffer, 200);
+	SetResponseHeader(Buffer, "Date", ServerTime);
+	SetResponseHeader(Buffer, "Server", "8080 Remote v0.1");
+	SetResponseHeader(Buffer, "Content-Length", PidLength);
+	SetResponseHeader(Buffer, "Connection", "Closed");
+	SetResponseHeader(Buffer, "Content-Type", "text/html; charset=iso-8859-1");
+	strcat(Buffer, "\r\n");
+	strcat(Buffer, Pid);
+
+	send(ServerFd, Buffer, strlen(Buffer), 0);
 }

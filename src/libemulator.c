@@ -4,8 +4,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "lib8080.h"
 #include "libemulator.h"
+#include "libscheduler.h"
 
 char *AllPages[32768];
 int PageNum = 0;
@@ -20,9 +22,6 @@ int GetRegister(char operand, int start, int end){
 short Concatenate(char high, char low, struct Process* Pinfo){
 	return (Pinfo->registers[high] << 8) | Pinfo->registers[low];
 }
-
-
-//char Find(
 
 Process* NewProcess(char *Program, int Binary){
 	if(Binary == 1){
@@ -68,6 +67,7 @@ void* PageAlloc(){
 		return NULL;
 	}
 	AllPages[PageNum++] = Cursor;
+	memset(Header + sizeof(Page), 0, 4096);
 	return Cursor;
 }
 
@@ -301,10 +301,28 @@ char GetMemory(unsigned short address, Process *p){
 }
 
 Process *CreateProcess(char *Program, char mode){
+
 	Process *p = (Process *)ProcessAlloc();
-	if(p == NULL)
+	if(p == NULL){
 		return NULL;
-	AddToProcessTable(p);
+	}
+	p->state = 0;
+	p->inte = 1;
+	p->Next = NULL;
+
+	p->pc = 0;
+	p->sp = 0x0f00;
+
+	p->registers[0] = 0;
+	p->registers[1] = 0;
+	p->registers[2] = 0;
+	p->registers[3] = 0;
+	p->registers[4] = 0;
+	p->registers[5] = 0;
+	p->registers[6] = 0;
+	p->registers[7] = 0;
+	p->registers[8] = 0;
+
 	
 	FILE *FProgram = NULL;
 	if(mode == MODE_BINARY){
@@ -323,6 +341,7 @@ Process *CreateProcess(char *Program, char mode){
 	}else if(mode == MODE_HEX){
 		FProgram = fopen(Program, "r");
 		if(FProgram == NULL){
+			printf("file not found\n");
 			return NULL;
 		}
 		unsigned short i = 0;
@@ -340,8 +359,20 @@ Process *CreateProcess(char *Program, char mode){
 	}else{
 		return NULL;
 	}
+	
+	AddToProcessTable(p);
+	QueueInsert(p);
+
 	fclose(FProgram);
 	return p;
+}
+
+void DestroyProcess(int Pid){
+	DestroyProcessTableEntry(Pid);
+	Process *ToDestroy = FindInProcessTable(Pid);
+	close(ToDestroy->In);
+	close(ToDestroy->Out);
+	ProcessDealloc(ToDestroy);
 }
 
 
@@ -378,3 +409,31 @@ Process *FindInProcessTable(int pid){
 	}
 }
 
+void DestroyProcessTableEntry(int pid){
+	printf("destroyed\n");
+	return;
+	int Index = pid % 127;
+	ProcessBucket *Cursor = ProcessTable[Index];
+	if(ProcessTable[Index] == NULL){
+		return;
+	}else{
+		while(Cursor->Next != NULL){
+			if(Cursor->Next->Value->Pid == pid)
+				break;
+			Cursor = Cursor->Next;
+		}if(Cursor->Next == NULL && Cursor->Value->Pid != pid){
+			return;
+		}else{
+			ProcessBucket *tmp = Cursor->Next;
+			Cursor->Next = tmp->Next;
+			free(Cursor->Next);
+		}
+	}
+}
+
+unsigned short GetMemoryShort(unsigned short memory, Process *Pinfo){
+	unsigned short Low = GetMemory(memory, Pinfo);
+	unsigned short High = GetMemory(memory + 1, Pinfo);
+	unsigned short Out = (High << 8) | Low;
+	return Out;
+}

@@ -13,4 +13,6 @@ int ValidateSession(char *SessionId);
 void GetCookies(char *Destination, char *Request);
 void Terminal(int ServerFd, char *Request);
 void ReadProcessStream(int ServerFd, char *Args, char *ServerTime);
+void WriteProcessStream(int ServerFd, char *Args, char *ServerTime);
+void HTTPCreateProcess(int ServerFd, char *Args, char *ServerTime);
 #endif
